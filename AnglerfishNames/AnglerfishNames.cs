@@ -10,7 +10,7 @@ namespace AnglerfishNames
     {
         public static AnglerfishNames Instance;
 
-        private readonly Vector3[] fishLocations = {
+        private readonly Vector3[] fishLocations = [
             new(715.7f, -86.4f, 4220.8f),
             new(-397.8f, -153.8f, -279.4f),
             new(3587.3f, 267.0f, 2057.2f),
@@ -21,23 +21,25 @@ namespace AnglerfishNames
             new(666.5f, -36.2f, 48.8f),
             new(826.6f, 195.3f, 73.1f),
             new(4406.0f, -411.0f, 1203.4f)
-        };
-        private readonly string[] fishNames =
-        {
+        ];
+        private readonly string[] fishNames = [
             "Ernesto Sr",
             "Tootholomew",
             "Pebbles",
             "Nemo",
-            "Fishy mcfishface",
+            "Fishy McFishface",
             "Gillbert",
             "Blindrew",
             "Lightney",
             "Finnegan",
             "Bubbles"
-        };
+        ];
+        private readonly string quantumFishName = "Ernesta";
         GameObject fishEggs;
         CanvasMarker[] markers = new CanvasMarker[10];
+        CanvasMarker quantumFishMarker = null;
         FogWarpDetector playerFogWarpDetector;
+        bool inSolarSystem = false;
 
         // settings
 
@@ -68,10 +70,9 @@ namespace AnglerfishNames
 
         public void OnCompleteSceneLoad(OWScene previousScene, OWScene newScene)
         {
-            if (newScene != OWScene.SolarSystem)
-            {
-                markers = new CanvasMarker[10];
-            }
+            markers = new CanvasMarker[10];
+            quantumFishMarker = null;
+            inSolarSystem = newScene == OWScene.SolarSystem;
         }
 
         public override void Configure(IModConfig config)
@@ -92,33 +93,55 @@ namespace AnglerfishNames
                     );
                 }
             }
+            if (quantumFishMarker != null)
+            {
+                quantumFishMarker.SetVisibility(isModEnabled);
+            }
         }
 
         public void Update()
         {
-            if (Locator.GetPlayerDetector() != null)
+            if (inSolarSystem)
             {
-                playerFogWarpDetector = Locator.GetPlayerDetector().GetComponent<FogWarpDetector>();
-            }
-            if (markers[0] == null && Locator.GetMarkerManager() != null)
-            {
-                fishEggs = GameObject.Find("FishEggs");
-                AnglerfishController[] fishes = Resources.FindObjectsOfTypeAll<AnglerfishController>();
-                int i = 0;
-                foreach (AnglerfishController fish in fishes)
+                if (Locator.GetPlayerDetector() != null)
                 {
-                    CanvasMarker marker = Locator.GetMarkerManager().InstantiateNewMarker();
-                    Locator.GetMarkerManager().RegisterMarker(marker, fish.GetComponent<OWRigidbody>(), fishNames[FishIndex(fish)]);
-                    marker.SetOuterFogWarpVolume(fish._brambleBody.GetComponentInChildren<OuterFogWarpVolume>());
-                    if (displayThroughSeeds) marker.SetVisibility(true);
-                    markers[i++] = marker;
+                    playerFogWarpDetector = Locator.GetPlayerDetector().GetComponent<FogWarpDetector>();
+                }
+                if (markers[0] == null && Locator.GetMarkerManager() != null)
+                {
+                    fishEggs = GameObject.Find("FishEggs");
+                    AnglerfishController[] fishes = Resources.FindObjectsOfTypeAll<AnglerfishController>();
+                    int i = 0;
+                    foreach (AnglerfishController fish in fishes)
+                    {
+                        CanvasMarker marker = Locator.GetMarkerManager().InstantiateNewMarker();
+                        Locator.GetMarkerManager().RegisterMarker(marker, fish.transform, fishNames[FishIndex(fish)]);
+                        marker.SetOuterFogWarpVolume(fish._brambleBody.GetComponentInChildren<OuterFogWarpVolume>());
+                        marker.SetVisibility(isModEnabled && displayThroughSeeds);
+                        markers[i++] = marker;
+                    }
+                }
+                if (markers[0] != null && isModEnabled && !displayThroughSeeds)
+                {
+                    foreach (CanvasMarker marker in markers)
+                    {
+                        marker.SetVisibility(playerFogWarpDetector.GetOuterFogWarpVolume() == marker._outerFogWarpVolume);
+                    }
                 }
             }
-            if (markers[0] != null && isModEnabled && !displayThroughSeeds)
+            if (PlayerState.IsInsideTheEye())
             {
-                foreach (CanvasMarker marker in markers)
+                VisibilityObject quantumAnglerfish = FindObjectOfType<QuantumAnglerfish>()?.GetComponentInChildren<VisibilityObject>();
+                if (quantumFishMarker == null && quantumAnglerfish != null)
                 {
-                    marker.SetVisibility(playerFogWarpDetector.GetOuterFogWarpVolume() == marker._outerFogWarpVolume);
+                    quantumFishMarker = Locator.GetMarkerManager().InstantiateNewMarker();
+                    Locator.GetMarkerManager().RegisterMarker(quantumFishMarker, quantumAnglerfish.transform, quantumFishName);
+                    quantumFishMarker.SetVisibility(isModEnabled);
+                }
+                if (quantumFishMarker != null && quantumAnglerfish == null)
+                {
+                    Locator.GetMarkerManager().UnregisterMarker(quantumFishMarker);
+                    quantumFishMarker = null;
                 }
             }
         }
